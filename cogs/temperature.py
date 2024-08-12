@@ -17,55 +17,49 @@ class Temperature(commands.Cog):
         try:
             cpu = CPUTemperature()
             temp = cpu.temperature
-            await ctx.send(f"The current hardware temperature is {temp:.2f}�C.")
+            await ctx.send(f"The current hardware temperature is {temp:.2f}°C.")
         except Exception as e:
             await ctx.send(f"Failed to retrieve temperature: {str(e)}")
 
     @commands.command(name='schedule')
     async def schedule_temp_check(self, ctx):
-        """Schedule a cron job to check temperature every minute."""
+        """Schedule a cron job to check temperature every 30 minutes."""
         try:
             # Get the path to the current script
             script_path = os.path.abspath(__file__)
 
             # Create a cron job
             cron = CronTab(user=True)
-            job = cron.new(command=f'python3 {script_path} check_temp', comment='Temperature Check Cron Job')
-            job.minute.every(1)
+            job = cron.new(command=f'python3 {script_path}', comment='Temperature Check Cron Job')
+            job.minute.on(0, 1)  # Every 30 minutes
 
             cron.write()
 
-            await ctx.send("Scheduled a temperature check every minute.")
+            await ctx.send("Scheduled a temperature check every 30 minutes.")
         except Exception as e:
             await ctx.send(f"Failed to schedule the temperature check: {str(e)}")
-
-    @commands.command(name='check_temp')
-    async def check_temp(self, ctx=None):
-        """Check the Raspberry Pi hardware temperature and send an alert if it's above 70�C."""
-        try:
-            cpu = CPUTemperature()
-            temp = cpu.temperature
-            if temp > 70:
-                channel = self.bot.get_channel(1272423613164818464)  # Replace with your channel ID
-                await channel.send(f"Warning: The CPU temperature is {temp:.2f}�C, which is above the threshold of 70�C.")
-        except Exception as e:
-            if ctx:
-                await ctx.send(f"Failed to retrieve temperature: {str(e)}")
-            else:
-                print(f"Failed to retrieve temperature: {str(e)}")
 
 async def setup(bot):
     await bot.add_cog(Temperature(bot))
 
 # Standalone execution check for cron job
 if __name__ == "__main__":
-    from dotenv import load_dotenv
-    import discord
-    from discord.ext import commands
+    try:
+        cpu = CPUTemperature()
+        temp = cpu.temperature
 
-    load_dotenv()
-    intents = discord.Intents.default()
-    intents.message_content = True
+        bot = commands.Bot(command_prefix="!", intents=discord.Intents.default())
+        bot_channel = bot.get_channel(1272423613164818464)  # Replace with your channel ID
 
-    bot = commands.Bot(command_prefix="!", intents=intents)
-    bot.run(os.getenv("DISCORD_TOKEN"))
+        if temp > 70:
+            message = f"Warning: The CPU temperature is {temp:.2f}°C, which is above the threshold of 70°C."
+        else:
+            message = f"The current hardware temperature is {temp:.2f}°C."
+
+        async def send_temp_alert():
+            async with bot:
+                await bot_channel.send(message)
+
+        bot.run(os.getenv("DISCORD_TOKEN"))
+    except Exception as e:
+        print(f"Failed to retrieve temperature: {str(e)}")
