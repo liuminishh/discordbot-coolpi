@@ -18,6 +18,9 @@ async def load_extensions():
 async def on_ready():
     print(f'Bot is online as {bot.user}')
 
+    activity = discord.Activity(type=discord.ActivityType.watching, name="the temperature 🌡️")
+    await bot.change_presence(status=discord.Status.online, activity=activity)
+
 async def main():
     await load_extensions()
     await bot.start(os.getenv('DISCORD_TOKEN'))

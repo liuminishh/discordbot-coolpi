@@ -25,13 +25,10 @@ class Temperature(commands.Cog):
     async def schedule_temp_check(self, ctx):
         """Schedule a cron job to check temperature every 30 minutes."""
         try:
-            # Get the path to the current script
             script_path = os.path.abspath(__file__)
-
-            # Create a cron job
             cron = CronTab(user=True)
             job = cron.new(command=f'python3 {script_path}', comment='Temperature Check Cron Job')
-            job.minute.on(0, 1)  # Every 30 minutes
+            job.minute.every(30)
 
             cron.write()
 
@@ -48,18 +45,27 @@ if __name__ == "__main__":
         cpu = CPUTemperature()
         temp = cpu.temperature
 
-        bot = commands.Bot(command_prefix="!", intents=discord.Intents.default())
-        bot_channel = bot.get_channel(1272423613164818464)  # Replace with your channel ID
-
         if temp > 70:
+            bot = commands.Bot(command_prefix="!", intents=discord.Intents.default())
+            bot_channel_id = 1272423613164818464
+
             message = f"Warning: The CPU temperature is {temp:.2f}°C, which is above the threshold of 70°C."
+
+            async def send_temp_alert():
+                bot_channel = bot.get_channel(bot_channel_id)
+                if bot_channel:
+                    await bot_channel.send(message)
+                else:
+                    print(f"Could not find channel with ID {bot_channel_id}")
+
+            @bot.event
+            async def on_ready():
+                await send_temp_alert()
+                await bot.close()
+
+            bot.run(os.getenv("DISCORD_TOKEN"))
         else:
-            message = f"The current hardware temperature is {temp:.2f}°C."
+            print(f"The current hardware temperature is {temp:.2f}°C.")
 
-        async def send_temp_alert():
-            async with bot:
-                await bot_channel.send(message)
-
-        bot.run(os.getenv("DISCORD_TOKEN"))
     except Exception as e:
         print(f"Failed to retrieve temperature: {str(e)}")
